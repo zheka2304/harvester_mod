@@ -5,5 +5,9 @@ Item.setPrototype("harvestDrone", {
 	
 	getName: function(){
 		return "Harvest Drone";
+	},
+	
+	getParams: function(){
+		return {isTech: true}
 	}
 });

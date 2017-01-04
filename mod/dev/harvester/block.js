@@ -29,6 +29,7 @@ Block.setPrototype("cropHarvester", {
 });
 
 TileEntity.registerPrototype(BlockID.cropHarvester, {
+	isCropHarvester: true,
 	defaultValues: {
 		index: 0
 	},
@@ -38,14 +39,16 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 	},
 	
 	tick: function(){
+		this.liquidStorage.updateUiScale("liquidScale", "water");
+		
 		var farmlandCoords = this.findFarmland();
 		if (farmlandCoords){
 			var block = World.getBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z);
 			var CROPS = {
 				59: [[296, 1, 0], [295, parseInt(1 + Math.random() * 3), 0]],
-				141: true,
-				142: true,
-				244: true
+				141: [[391, parseInt(1 + Math.random() * 3), 0]],
+				142: [[392, parseInt(1 + Math.random() * 3), 0]],
+				244: [[457, 1, 0], [458, parseInt(1 + Math.random() * 3), 0]]
 			};
 			var SEEDS = {
 				295: 59,
@@ -78,14 +81,18 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 					};
 					COMPOST[ItemID.advancedCompost] = {data: 0, value: 8};
 					
-					var compost = this.getCompostItem(COMPOST);
-					if (compost){
+					if (this.getWater(0.5)){
+						var compost = this.getCompostItem(COMPOST);
 						this.addDroneTask({x: farmlandCoords.x + .5, y: farmlandCoords.y + 2.6, z: farmlandCoords.z + .5}, function(drone){
-							World.setBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z, block.id, Math.min(7, block.data + COMPOST[compost.id].value));
-							drone.setCarriedDrop(0, 0, 0);
-							this.waterFarmland(drone, farmlandCoords);
+							if (compost){
+								World.setBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z, block.id, Math.min(7, block.data + COMPOST[compost.id].value));
+								drone.setCarriedDrop(0, 0, 0);
+							}
+							this.waterFarmland(drone, farmlandCoords, CROPS);
 						}, function(drone){
-							drone.setCarriedDrop(compost.id, 1, compost.data);
+							if (compost){
+								drone.setCarriedDrop(compost.id, 1, compost.data);
+							}
 						});
 					}
 				}
@@ -103,9 +110,11 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 			}
 			
 			if (World.getBlockData(farmlandCoords.x, farmlandCoords.y, farmlandCoords.z) == 0){
-				this.addDroneTask({x: farmlandCoords.x + .5, y: farmlandCoords.y + 2.6, z: farmlandCoords.z + .5}, function(drone){
-					this.waterFarmland(drone, farmlandCoords);
-				});
+				if (this.getWater(0.3)){
+					this.addDroneTask({x: farmlandCoords.x + .5, y: farmlandCoords.y + 2.6, z: farmlandCoords.z + .5}, function(drone){
+						this.waterFarmland(drone, farmlandCoords, CROPS);
+					});
+				}
 			}
 		}
 	},
@@ -175,7 +184,7 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 		return null;
 	},
 	
-	waterFarmland: function(drone, farmlandCoords){
+	waterFarmland: function(drone, farmlandCoords, crops){
 		drone.setWait(60, function(drone, timeLeft){
 			if (timeLeft > 35){
 				for (var i = 0; i < 3; i++){
@@ -183,6 +192,10 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 				}
 			}
 			if (timeLeft == 0){
+				var crop = World.getBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z);
+				if (crops[crop.id]){
+					World.setBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z, crop.id, crop.data + 1);
+				}
 				for (var x = farmlandCoords.x - 1; x < farmlandCoords.x + 2; x++){
 					for (var z = farmlandCoords.z - 1; z < farmlandCoords.z + 2; z++){
 						if (World.getBlockID(x, farmlandCoords.y, z) == 60){
@@ -192,6 +205,11 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 				}
 			}
 		});
+	},
+	
+	getWater: function(amount){
+		var got = this.liquidStorage.getLiquid("water", amount, true);
+		return got > 0;
 	},
 	
 	
@@ -208,6 +226,7 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 	
 	init: function(){
 		this.createDrones(3);
+		this.liquidStorage.setLimit("water", 16);
 	},
 	
 	destroy: function(){
