@@ -123,15 +123,15 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 					COMPOST[ItemID.advancedCompost] = {data: 0, value: 8};
 					
 					if (this.getWater(0.5)){
-						var compost = this.getCompostItem(COMPOST);
 						this.addDroneTask({x: farmlandCoords.x + .5, y: farmlandCoords.y + 2.6, z: farmlandCoords.z + .5}, function(drone){
-							if (compost){
+							if (this.curCompost){
 								World.setBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z, block.id, Math.min(7, block.data + COMPOST[compost.id].value));
 								drone.setCarriedDrop(0, 0, 0);
 							}
 							this.waterFarmland(drone, farmlandCoords, CROPS);
 						}, function(drone){
-							if (compost){
+							this.curCompost = this.getCompostItem(COMPOST);
+							if (this.curCompost){
 								drone.setCarriedDrop(compost.id, 1, compost.data);
 							}
 						});
@@ -141,12 +141,15 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 			else if (block.id == 0){
 				var seed = this.getSeedItem(SEEDS);
 				if (seed){
-					this.addDroneTask({x: farmlandCoords.x + .5, y: farmlandCoords.y + 1.5, z: farmlandCoords.z + .5}, function(drone){
+					var result = this.addDroneTask({x: farmlandCoords.x + .5, y: farmlandCoords.y + 1.5, z: farmlandCoords.z + .5}, function(drone){
 						World.setBlock(farmlandCoords.x, farmlandCoords.y + 1, farmlandCoords.z, SEEDS[seed.id], 0);
 						drone.setCarriedDrop(0, 0, 0);
 					}, function(drone){
 						drone.setCarriedDrop(seed.id, 1, 0);
 					});
+					if (!result){
+						this.addResult("seedSlot", seed.id, 1, seed.data);
+					}
 				}
 			}
 			
@@ -288,7 +291,7 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 			else if (drone.currentTask) {
 				var target = drone.currentTask.target;
 				if (target.x == coords.x && target.y == coords.y && target.z == coords.z){
-					return;
+					return false;
 				}
 			}
 		}
@@ -296,7 +299,11 @@ TileEntity.registerPrototype(BlockID.cropHarvester, {
 		if (freeDrone){
 			freeDrone.addTask(coords, task1, task2);
 			freeDrone.addTask(freeDrone.origin);
+			return true;
 		}
+		else{
+			return false;
+		}	
 	},
 });
 
